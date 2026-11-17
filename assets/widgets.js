@@ -32,13 +32,14 @@
     const ink = css('--muted'), line = css('--line'), acc = css('--accent'), good = css('--good');
     g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(L, T); g.lineTo(L, h - B); g.lineTo(w - R, h - B); g.stroke();
     g.fillStyle = ink; g.textAlign = 'center';
-    (o.xticks || []).forEach(t => g.fillText(String(t), X(t), h - 8));
+    (o.xticks || []).forEach(t => g.fillText(o.xfmt ? o.xfmt(t) : String(t), X(t), h - 8));
     g.textAlign = 'right';
     (o.yticks || []).forEach(t => g.fillText(o.yfmt ? o.yfmt(t) : t.toFixed(2), L - 4, Y(t) + 4));
     if (o.bars) { g.fillStyle = acc; g.globalAlpha = 0.8; o.bars.forEach(b => { const x = X(b.x - b.w / 2), x2 = X(b.x + b.w / 2); g.fillRect(x + 0.5, Y(b.y), max(1, x2 - x - 1), Y(o.y0) - Y(b.y)); }); g.globalAlpha = 1; }
     const path = (pts, color, width) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); pts.forEach((p, i) => { const y = max(o.y0, min(o.y1, p[1])); i ? g.lineTo(X(p[0]), Y(y)) : g.moveTo(X(p[0]), Y(y)); }); g.stroke(); };
     if (o.line) path(o.line, acc, 2.5);
     if (o.overlay) path(o.overlay, good, 2);
+    if (o.dot) { g.fillStyle = css('--bad'); g.beginPath(); g.arc(X(o.dot[0]), Y(max(o.y0, min(o.y1, o.dot[1]))), 4.5, 0, 2 * PI); g.fill(); }
     if (o.mark != null) { g.strokeStyle = css('--bad'); g.setLineDash([4, 3]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(o.mark), T); g.lineTo(X(o.mark), h - B); g.stroke(); g.setLineDash([]); }
   }
   const ticks = (a, b, n) => { const out = []; for (let i = 0; i <= n; i++) out.push(Math.round((a + (b - a) * i / n) * 100) / 100); return out; };
@@ -134,7 +135,143 @@
     inp.addEventListener('input', draw); draw(); return draw;
   }
 
-  const KINDS = { dist, clt, lik };
+  /* ================= widgets for the machine-learning course ================= */
+  const human = x => { const a = Math.abs(x); return a >= 1e12 ? (x / 1e12).toFixed(a >= 1e13 ? 0 : 1) + 'T' : a >= 1e9 ? (x / 1e9).toFixed(a >= 1e10 ? 0 : 1) + 'B' : a >= 1e6 ? (x / 1e6).toFixed(0) + 'M' : a >= 1e3 ? (x / 1e3).toFixed(0) + 'K' : String(Math.round(x * 100) / 100); };
+  const sig = x => 1 / (1 + exp(-x));
+  const sliderHTML = (key, label, lo, hi, step, val) => `<label>${label} = <b data-v="${key}">${val}</b> <input type="range" data-k="${key}" min="${lo}" max="${hi}" step="${step}" value="${val}"></label>`;
+  function bindSliders(el, onChange, show) {
+    el.querySelectorAll('input[type=range]').forEach(i => i.addEventListener('input', () => {
+      const b = el.querySelector(`[data-v="${i.dataset.k}"]`); if (b) b.textContent = show ? show(i.dataset.k, +i.value) : i.value; onChange();
+    }));
+  }
+  const val = (el, k) => +el.querySelector(`[data-k="${k}"]`).value;
+  function hbars(rows, opts) {
+    // rows: [{label, v, text}] with v in [-1, 1] (signed) or [0, 1]
+    const signed = opts && opts.signed;
+    return `<div class="hbars">${rows.map(r => `<div class="hb-row"><span class="hb-label">${r.label}</span><span class="hb-track${signed ? ' signed' : ''}">` +
+      (signed ? `<i class="${r.v < 0 ? 'neg' : 'pos'}" style="${r.v < 0 ? 'right:50%' : 'left:50%'};width:${Math.abs(r.v) * 50}%"></i>` : `<i style="width:${Math.max(0, r.v) * 100}%"></i>`) +
+      `</span><span class="hb-val">${r.text}</span></div>`).join('')}</div>`;
+  }
+
+  /* softmax with a temperature knob: sampling temperature, CLIP's tau */
+  function softmax(el) {
+    const toks = ['Rome', 'Milan', 'Paris', 'pasta', 'the'], logits = [4.0, 2.5, 2.0, 1.0, 0.2];
+    el.innerHTML = `<div class="controls"><span>Prompt: <em>“The capital of Italy is …”</em></span>${sliderHTML('t', 'Temperature T', -3, 1.2, 0.01, 0)}</div><div class="out"></div><div class="readout"></div>`;
+    const draw = () => {
+      const T = exp(val(el, 't'));
+      el.querySelector('[data-v="t"]').textContent = T.toFixed(2);
+      const z = logits.map(l => l / T), m = max(...z), e = z.map(v => exp(v - m)), s = e.reduce((a, b) => a + b, 0), p = e.map(v => v / s);
+      const H = -p.reduce((a, q) => a + (q > 0 ? q * log(q) : 0), 0);
+      el.querySelector('.out').innerHTML = hbars(toks.map((t, i) => ({ label: t + ` <span class="muted">(${logits[i]})</span>`, v: p[i], text: (p[i] * 100).toFixed(1) + '%' })));
+      el.querySelector('.readout').innerHTML = `Logits are divided by T before the softmax. Entropy ${H.toFixed(2)} nats, so the model is choosing among about <strong>${exp(H).toFixed(2)}</strong> tokens (that number is the perplexity of this one step). ${T < 0.3 ? 'Low T: almost greedy, always “Rome”.' : T > 2 ? 'High T: close to uniform, so unlikely tokens get sampled.' : ''}`;
+    };
+    bindSliders(el, draw, (k, v) => exp(v).toFixed(2)); draw(); return draw;
+  }
+
+  /* MinHash LSH S-curve: P(candidate) = 1 - (1 - J^r)^b */
+  function lsh(el) {
+    el.innerHTML = `<div class="controls">${sliderHTML('b', 'bands b', 1, 40, 1, 14)}${sliderHTML('r', 'rows per band r', 1, 20, 1, 8)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const draw = () => {
+      const b = val(el, 'b'), r = val(el, 'r'), P = J => 1 - (1 - J ** r) ** b;
+      const pts = []; for (let i = 0; i <= 200; i++) { const J = i / 200; pts.push([J, P(J)]); }
+      const thr = (1 / b) ** (1 / r);
+      plot(c, { x0: 0, x1: 1, y0: 0, y1: 1.02, line: pts, mark: thr, xticks: [0, 0.2, 0.4, 0.6, 0.8, 1], yticks: [0, 0.5, 1], dot: [0.8, P(0.8)] });
+      out.innerHTML = `x-axis: true Jaccard similarity J of two documents. y-axis: chance they land in a shared bucket. Signature length k = b·r = <strong>${b * r}</strong> hashes. Step near (1/b)<sup>1/r</sup> ≈ <strong>${thr.toFixed(2)}</strong> (dashed). A pair with J = 0.8 is caught ${(P(0.8) * 100).toFixed(0)}% of the time; J = 0.5, ${(P(0.5) * 100).toFixed(1)}%.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* Chinchilla: IsoFLOP curve under the refit law L = E + A/N^a + B/D^b */
+  function chinchilla(el) {
+    const E = 1.8172, A = 482.01, B = 2085.43, al = 0.3478, be = 0.3658, L = (N, D) => E + A / N ** al + B / D ** be;
+    el.innerHTML = `<div class="controls">${sliderHTML('c', 'Compute budget C', 20, 26, 0.1, 23.7)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const draw = () => {
+      const C = 10 ** val(el, 'c');
+      el.querySelector('[data-v="c"]').textContent = '10^' + val(el, 'c').toFixed(1) + ' FLOPs';
+      const pts = []; let best = [0, 1e9];
+      for (let i = 0; i <= 400; i++) { const lg = 7 + 6 * i / 400, N = 10 ** lg, y = L(N, C / (6 * N)); pts.push([lg, y]); if (y < best[1]) best = [lg, y]; }
+      const Nb = 10 ** best[0], Db = C / (6 * Nb), Nr = sqrt(C / 120);
+      plot(c, { x0: 7, x1: 13, y0: best[1] - 0.05, y1: Math.min(best[1] + 1.6, max(...pts.map(q => q[1]))) + 0.05, line: pts, mark: best[0], dot: [best[0], best[1]], xticks: [7, 8, 9, 10, 11, 12, 13], xfmt: t => human(10 ** t), yticks: [best[1], best[1] + 0.5, best[1] + 1], yfmt: t => t.toFixed(2) });
+      out.innerHTML = `Curve: predicted loss for every model size N that spends exactly this budget (D = C / 6N tokens). Best: <strong>${human(Nb)} parameters on ${human(Db)} tokens</strong> (${(Db / Nb).toFixed(0)} tokens per parameter), loss ${best[1].toFixed(3)}. The 20:1 rule says ${human(Nr)} on ${human(20 * Nr)}. Half or double the best size costs only ${((L(Nb / 2, 2 * Db) / best[1] - 1) * 100).toFixed(2)}% / ${((L(Nb * 2, Db / 2) / best[1] - 1) * 100).toFixed(2)}% more loss.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* Training memory per GPU: weights, gradients, optimizer state */
+  function mem(el) {
+    const methods = { ddp: 'Full training, plain DDP', z1: 'ZeRO-1 (shard optimizer)', z2: 'ZeRO-2 (+ gradients)', z3: 'ZeRO-3 / FSDP (+ weights)', lora: 'LoRA on a BF16 base', qlora: 'QLoRA on a 4-bit base' };
+    const start = el.dataset.start && methods[el.dataset.start] ? el.dataset.start : 'ddp';
+    el.innerHTML = `<div class="controls"><label>Model <select data-n>${[1, 7, 13, 70, 405].map(n => `<option value="${n}" ${n === 7 ? 'selected' : ''}>${n}B</option>`).join('')}</select></label>
+      <label>Method <select data-m>${Object.keys(methods).map(k => `<option value="${k}" ${k === start ? 'selected' : ''}>${methods[k]}</option>`).join('')}</select></label>
+      <label>GPUs d <select data-d>${[1, 2, 4, 8, 16, 32, 64, 128, 256].map(n => `<option ${n === 8 ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div><div class="out"></div><div class="readout"></div>`;
+    const draw = () => {
+      const N = +el.querySelector('[data-n]').value * 1e9, m = el.querySelector('[data-m]').value, single = m === 'lora' || m === 'qlora';
+      const dSel = el.querySelector('[data-d]'); dSel.disabled = single || m === 'ddp';
+      const d = single || m === 'ddp' ? 1 : +dSel.value, a = 0.006 * N; // adapters: ~0.6% of the parameters (rank 16 on every linear layer)
+      let parts;
+      if (m === 'ddp') parts = [2 * N, 2 * N, 12 * N];
+      else if (m === 'z1') parts = [2 * N, 2 * N, 12 * N / d];
+      else if (m === 'z2') parts = [2 * N, 2 * N / d, 12 * N / d];
+      else if (m === 'z3') parts = [2 * N / d, 2 * N / d, 12 * N / d];
+      else parts = [(m === 'lora' ? 2 : 4.127 / 8) * N + 2 * a, 2 * a, 12 * a];
+      const tot = parts.reduce((x, y) => x + y, 0), GB = x => (x / 1e9).toFixed(x < 1e10 ? 1 : 0);
+      const scale = Math.max(tot, 80e9) * 1.08, names = ['weights', 'gradients', 'optimizer state'];
+      el.querySelector('.out').innerHTML = `<div class="stack">${parts.map((p, i) => `<i class="s${i}" style="width:${p / scale * 100}%" title="${names[i]}"></i>`).join('')}<span class="gpu-line" style="left:${80e9 / scale * 100}%"></span></div>
+        <div class="legend">${parts.map((p, i) => `<span><i class="s${i}"></i>${names[i]} ${GB(p)} GB</span>`).join('')}<span class="muted">dashed line = one 80 GB GPU</span></div>`;
+      el.querySelector('.readout').innerHTML = `<strong>${GB(tot)} GB per GPU</strong>, before activations. ${tot <= 80e9 ? 'Fits on one 80 GB GPU (if activations do too).' : 'Does not fit on one 80 GB GPU.'} ${single ? 'Adapters assumed to be about 0.6% of the parameters; only they carry gradients and Adam state.' : m === 'ddp' ? 'Plain DDP keeps a full copy on every GPU, so adding GPUs does not help.' : `Each of the ${d} GPUs holds 1/${d} of the sharded parts.`}`;
+    };
+    el.querySelectorAll('select').forEach(s => s.addEventListener('change', draw)); draw(); return draw;
+  }
+
+  /* Bradley-Terry / DPO: probability and loss as a function of the score gap */
+  function bt(el) {
+    const dpo = el.dataset.start === 'dpo', lab = dpo ? 'β · margin' : 'reward gap r_w − r_l';
+    el.innerHTML = `<div class="controls">${sliderHTML('g', lab, -5, 5, 0.1, 0.8)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const draw = () => {
+      const g = val(el, 'g'), pts = []; for (let i = 0; i <= 200; i++) { const x = -5 + 10 * i / 200; pts.push([x, -log(sig(x))]); }
+      plot(c, { x0: -5, x1: 5, y0: 0, y1: 5.2, line: pts, dot: [g, -log(sig(g))], xticks: [-4, -2, 0, 2, 4], yticks: [0, 2.5, 5], yfmt: t => t.toFixed(1) });
+      out.innerHTML = `Curve: the loss −log σ(x). At ${lab} = ${g.toFixed(1)}: P(chosen wins) = σ = <strong>${sig(g).toFixed(3)}</strong>, loss = <strong>${(-log(sig(g))).toFixed(3)}</strong>, gradient weight σ(−x) = ${sig(-g).toFixed(3)}. ${g < 0 ? 'Wrong order: big loss and a strong push.' : g > 3 ? 'Well ordered: the loss has almost let go.' : ''}${dpo && Math.abs(g) < 0.05 ? ' At the start of DPO the policy equals the reference, so x = 0 and the loss is log 2 ≈ 0.693.' : ''}`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* GRPO group-relative advantages */
+  function grpo(el) {
+    const r = [0, 1, 0, 0, 1, 0, 1, 0];
+    el.innerHTML = `<div class="controls"><span>Click an answer to mark it right or wrong.</span><label><input type="checkbox" data-dr> Dr. GRPO (no division by std)</label></div><div class="toggles"></div><div class="out"></div><div class="readout"></div>`;
+    const draw = () => {
+      const dr = el.querySelector('[data-dr]').checked, G = r.length, mean = r.reduce((a, b) => a + b, 0) / G;
+      const sd = sqrt(r.reduce((a, b) => a + (b - mean) ** 2, 0) / G), adv = r.map(x => dr ? x - mean : (x - mean) / (sd + 1e-6));
+      const big = Math.max(1, ...adv.map(Math.abs));
+      el.querySelector('.toggles').innerHTML = r.map((x, i) => `<button type="button" class="chip tog ${x ? 'ok' : 'no'}" data-i="${i}">#${i + 1} ${x ? '✓' : '✗'}</button>`).join('');
+      el.querySelectorAll('.tog').forEach(b => b.addEventListener('click', () => { r[+b.dataset.i] ^= 1; draw(); }));
+      el.querySelector('.out').innerHTML = hbars(adv.map((a, i) => ({ label: `answer ${i + 1}`, v: a / big, text: (a >= 0 ? '+' : '') + a.toFixed(2) })), { signed: true });
+      el.querySelector('.readout').innerHTML = sd === 0 ? '<strong>Every answer got the same reward, so every advantage is 0.</strong> This question produced no gradient, after paying for 8 generations.' :
+        `Group mean ${mean.toFixed(3)}, std ${sd.toFixed(3)}. Right answers go up, wrong ones go down, and the advantages sum to zero. ${dr ? 'Dr. GRPO keeps r − mean only.' : 'Fewer correct answers give each one a bigger push.'}`;
+    };
+    el.querySelector('[data-dr]').addEventListener('change', draw); draw(); return draw;
+  }
+
+  /* pass@k = 1 - C(n-c, k) / C(n, k) */
+  function passk(el) {
+    el.innerHTML = `<div class="controls">${sliderHTML('n', 'samples n', 1, 100, 1, 10)}${sliderHTML('c', 'correct c', 0, 10, 1, 2)}${sliderHTML('k', 'k', 1, 10, 1, 5)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const pk = (n, cc, k) => n - cc < k ? 1 : 1 - exp(lchoose(n - cc, k) - lchoose(n, k));
+    const draw = () => {
+      const n = val(el, 'n'), ci = el.querySelector('[data-k="c"]'), ki = el.querySelector('[data-k="k"]');
+      ci.max = n; ki.max = n; if (+ci.value > n) ci.value = n; if (+ki.value > n) ki.value = n;
+      el.querySelector('[data-v="c"]').textContent = ci.value; el.querySelector('[data-v="k"]').textContent = ki.value;
+      const cc = +ci.value, k = +ki.value, pts = []; for (let j = 1; j <= n; j++) pts.push([j, pk(n, cc, j)]);
+      plot(c, { x0: 0.5, x1: n + 0.5, y0: 0, y1: 1.02, line: pts, dot: [k, pk(n, cc, k)], xticks: (() => { const st = Math.max(1, Math.ceil((n - 1) / 8)), o = []; for (let j = 1; j <= n; j += st) o.push(j); return o; })(), yticks: [0, 0.5, 1] });
+      out.innerHTML = `Curve: pass@k for every k from these n samples. pass@1 = c/n = <strong>${(cc / n).toFixed(3)}</strong>; pass@${k} = <strong>${pk(n, cc, k).toFixed(3)}</strong>, the chance that a random ${k} of the ${n} samples contain at least one of the ${cc} correct ones.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  const KINDS = { dist, clt, lik, softmax, lsh, chinchilla, mem, bt, grpo, passk };
   let live = [];
   window.StudyWidgets = {
     mount(root) {

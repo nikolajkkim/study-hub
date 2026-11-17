@@ -1,11 +1,13 @@
-/* Course definition. Each lecture file calls COURSE.add({...}). */
+/* Course definition. Each lecture file after this one calls COURSE.add({...}). */
 (function () {
   const r = String.raw;
-  window.COURSE = {
+  window.COURSE = STUDY.course({
+    id: 'stat5701',
     code: 'STAT 5701',
     title: 'Probability and Statistics for Data Science',
-    lectures: [],
-    add(l) { this.lectures.push(l); this.lectures.sort((a, b) => a.num - b.num); },
+    unit: 'Lecture',
+    decoderHint: 'Search: iid, mgf, hat, converges…',
+    tutorNotes: 'Use the course conventions: N(mu, sigma) lists the standard deviation, Exp(lambda) and Gamma(alpha, lambda) use rates, and the Geometric counts the trial of the first success.',
 
     story: r`**Lectures 10–11** hand you a toolbox of named distributions: ready-made models for counts (Binomial, Poisson, Geometric…) and for measurements (Normal, Exponential, Gamma…). **Lecture 12** gives you the rules for combining random quantities: what happens to the average and the spread when you add or scale them. **Lecture 13** shows the computer shortcut: when the math is too hard, simulate. **Lecture 14** is the payoff of all that: averages of lots of data settle down (Law of Large Numbers) and look bell-shaped (Central Limit Theorem). **Lecture 15** flips the direction: instead of "given the model, what data do I expect?" it asks "given the data, which model fits best?" That is estimation, and Maximum Likelihood is the main way to do it.`,
 
@@ -77,5 +79,5 @@ Confused by anything? Highlight the text and press **Ask about this**, or use th
         ['regularity conditions', '', 'Fine print: technical assumptions that hold for all the normal cases you will meet.'],
       ]},
     ]
-  };
+  });
 })();

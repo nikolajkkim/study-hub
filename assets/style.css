@@ -94,6 +94,26 @@ main{padding:1.8rem 2rem 6rem;min-width:0;outline:none}
 .roadmap a{font-weight:600;text-decoration:none}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}
 .chip{font-size:.82rem;padding:.25rem .65rem;border-radius:99px;background:var(--accent-soft);color:var(--accent);text-decoration:none;border:0}
+.side-back{display:block;font-size:.85rem;color:var(--muted);text-decoration:none;margin:0 0 .9rem .5rem}
+.side-back:hover{color:var(--ink)}
+/* interactive figures: bar rows, stacked memory bar, toggles */
+.hbars{display:grid;gap:.3rem;margin:.4rem 0}
+.hb-row{display:grid;grid-template-columns:minmax(5.5rem,auto) 1fr 4.2rem;gap:.6rem;align-items:center;font-size:.88rem}
+.hb-track{position:relative;height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.hb-track i{position:absolute;top:0;bottom:0;left:0;background:var(--accent);border-radius:7px}
+.hb-track.signed{background:linear-gradient(90deg,var(--line) 0 calc(50% - 1px),var(--muted) calc(50% - 1px) calc(50% + 1px),var(--line) calc(50% + 1px))}
+.hb-track.signed i{border-radius:0}
+.hb-track i.pos{background:var(--good)} .hb-track i.neg{background:var(--bad);left:auto}
+.hb-val{text-align:right;font-variant-numeric:tabular-nums}
+.stack{position:relative;display:flex;height:26px;border-radius:7px;background:var(--line);overflow:hidden;margin:.5rem 0}
+.stack i{display:block;height:100%}
+.s0{background:var(--accent)} .s1{background:var(--warn-line)} .s2{background:var(--bad)}
+.gpu-line{position:absolute;top:0;bottom:0;border-left:2px dashed var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.85rem}
+.legend i{display:inline-block;width:.8rem;height:.8rem;border-radius:3px;margin-right:.3rem;vertical-align:-1px}
+.toggles{display:flex;flex-wrap:wrap;gap:.35rem;margin:.3rem 0 .6rem}
+.chip.tog{cursor:pointer;font:inherit;font-size:.85rem}
+.chip.tog.ok{background:var(--good-soft);color:var(--good)} .chip.tog.no{background:var(--bad-soft);color:var(--bad)}
 .section-head{margin:2.2rem 0 .3rem;padding-top:.5rem}
 .section-head h2{font:600 1.45rem/1.25 var(--serif)}
 
