@@ -135,8 +135,8 @@ This works for **any** distribution, and it is why averaging data is useful.`,
         hint: r`\(a=3,\ b=-2\). The cross term is \(2ab\,\text{Cov}\).`, solution: r`\(9(4)+4(9)+2(3)(-2)(1)=36+36-12=60\).` },
       { id: 'q2', type: 'mcq', concept: 'var-rules', q: r`\(X\) and \(Y\) are independent with \(\text{Var}(X)=4\) and \(\text{Var}(Y)=9\). What is \(\text{Var}(X-Y)\)?`, choices: ['−5', '5', '13', '36'], answer: 2,
         hint: 'What happens to the coefficient −1 when it comes out of the variance?', solution: r`\((1)^2(4)+(-1)^2(9)=13\). Variances add even when you subtract the variables.` },
-      { id: 'q3', type: 'num', concept: 'cond-e', q: r`Using the GPU table (\(P(X{=}2,Y{=}1)=0.10\), \(P(X{=}2,Y{=}2)=0.20\)), find \(E(Y\mid X=2)\).`, answer: 5 / 3, show: '5/3 ≈ 1.667',
-        hint: 'Rescale the X = 2 column so it sums to 1.', solution: r`\(P(X=2)=0.30\). Conditional probabilities: \(\tfrac13\) and \(\tfrac23\). \(E(Y\mid X=2)=1(\tfrac13)+2(\tfrac23)=\tfrac53\).` },
+      { id: 'q3', type: 'num', concept: 'cond-e', q: r`A different joint table has, in the column \(X=1\): \(P(X{=}1,Y{=}0)=0.12\), \(P(X{=}1,Y{=}1)=0.18\), \(P(X{=}1,Y{=}3)=0.10\). Find \(E(Y\mid X=1)\).`, answer: 1.2,
+        hint: 'Divide the column by its total first, then average.', solution: r`Column total \(0.40\). Rescaled: \((0.3,\ 0.45,\ 0.25)\). \(E(Y\mid X=1)=0(0.3)+1(0.45)+3(0.25)=1.2\).` },
       { id: 'q4', type: 'num', concept: 'corr', q: r`\(\text{Cov}(X,Y)=6\), \(\text{Var}(X)=16\), \(\text{Var}(Y)=9\). Find the correlation \(\rho_{XY}\).`, answer: 0.5,
         hint: 'Divide by the standard deviations, not the variances.', solution: r`\(\rho=\dfrac{6}{4\times3}=0.5\).` },
       { id: 'q5', type: 'mcq', concept: 'corr', q: r`The correlation between \(X\) and \(Y\) is \(r\). What is the correlation between \(-2X+7\) and \(Y\)?`, choices: [r`\(r\)`, r`\(-r\)`, r`\(-2r\)`, r`\(4r\)`], answer: 1,
@@ -159,13 +159,9 @@ This works for **any** distribution, and it is why averaging data is useful.`,
         hint: r`Think of \(Y=X^2\) with \(X\) symmetric around 0.`, solution: r`Independence forces covariance 0, hence correlation 0. The reverse fails (\(Y=X^2\)). The other two also need independence (or at least zero covariance).` },
       { id: 'q12', type: 'num', concept: 'sums', q: r`You play a lottery with a 3% win chance until you have won 5 times. What is the expected number of plays?`, answer: 166.67, tol: 0.5,
         hint: 'Negative Binomial = sum of 5 Geometric waits.', solution: r`Each wait has mean \(1/p=33.33\). Five of them: \(k/p=5/0.03=166.7\).` },
-      { id: 'q13', type: 'self', concept: 'cov', q: r`For \(f(x,y)=24xy\) on \(0<x,\ 0<y,\ x+y<1\), compute \(E(X)\) from the marginal \(f(x)=12x(1-x)^2\) and confirm \(\text{Cov}(X,Y)=-\tfrac2{75}\) given \(E(XY)=\tfrac2{15}\).`,
-        hint: r`\(E(X)=\int_0^1 x\cdot12x(1-x)^2dx\). Expand \((1-x)^2\). By symmetry \(E(Y)=E(X)\).`,
-        solution: r`\(E(X)=12\displaystyle\int_0^1(x^2-2x^3+x^4)\,dx=12\left(\tfrac13-\tfrac12+\tfrac15\right)=12\cdot\tfrac1{30}=\tfrac25\).
-
-The density is symmetric in \(x\) and \(y\), so \(E(Y)=\tfrac25\).
-
-\(\text{Cov}=\tfrac2{15}-\tfrac25\cdot\tfrac25=\tfrac{10}{75}-\tfrac{12}{75}=-\tfrac2{75}\).` },
+      { id: 'q13', type: 'self', concept: 'cov', q: r`Take the uniform density \(f(x,y)=2\) on the triangle \(0<x,\ 0<y,\ x+y<1\). Find the marginal \(f(x)\), then \(E(X)\), \(E(XY)\) and \(\text{Cov}(X,Y)\). Does the sign make sense?`,
+        hint: r`Integrate out \(y\) from 0 to \(1-x\). By symmetry \(E(Y)=E(X)\).`,
+        solution: r`\(f(x)=\int_0^{1-x}2\,dy=2(1-x)\) on \(0<x<1\). \(E(X)=\int_0^1 2x(1-x)\,dx=\tfrac13\), and by symmetry \(E(Y)=\tfrac13\). \(E(XY)=\int_0^1\int_0^{1-x}2xy\,dy\,dx=\int_0^1 x(1-x)^2dx=\tfrac1{12}\). \(\text{Cov}=\tfrac1{12}-\tfrac19=-\tfrac1{36}\). Negative, as expected: the constraint \(x+y<1\) means a large \(x\) leaves room only for a small \(y\).` },
     ]
   });
 })();

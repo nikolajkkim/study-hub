@@ -133,8 +133,8 @@ It shines when no formula for the standard error exists, as with the median.`,
         hint: r`\(\ln(0.7)\approx-0.3567\).`, solution: r`\(x=-\ln(0.7)/2=0.3567/2=0.1783\).` },
       { id: 'q4', type: 'num', concept: 'inverse', q: r`A variable on \([0,1]\) has cdf \(F(x)=x^2\). Using inverse transform with \(u=0.49\), what value of \(x\) do you generate?`, answer: 0.7,
         hint: r`Solve \(u=x^2\) for \(x\).`, solution: r`\(x=\sqrt u=\sqrt{0.49}=0.7\).` },
-      { id: 'q5', type: 'mcq', concept: 'ar', q: r`Accept–reject with target \(f(x)=6x(1-x)\), uniform proposal, \(c=1.5\). The candidate is \(y=0.2\) and the uniform draw is \(u=0.70\). What happens?`, choices: [r`Accept, because \(0.70>0.64\)`, r`Reject, because \(0.70>0.64\)`, r`Accept, because \(0.70<0.96\)`, r`Reject, because \(0.2<0.5\)`], answer: 1,
-        hint: r`Compute \(f(0.2)/(c\cdot1)\) and compare with \(u\).`, solution: r`\(f(0.2)=6(0.2)(0.8)=0.96\). Ratio \(=0.96/1.5=0.64\). Since \(u=0.70>0.64\), reject.` },
+      { id: 'q5', type: 'mcq', concept: 'ar', q: r`Accept–reject with target \(f(x)=2x\) on \([0,1]\) and a uniform proposal. You choose \(c=2\) (the peak of \(f\)). The candidate is \(y=0.3\) and the uniform draw is \(u=0.4\). What happens?`, choices: [r`Accept, because \(0.4>0.3\)`, r`Reject, because \(0.4>0.3\)`, r`Accept, because \(0.4<0.6\)`, r`Reject, because \(0.3<0.5\)`], answer: 1,
+        hint: r`Ratio \(=f(y)/(c\,g(y))\); accept only if \(u\) is below it.`, solution: r`Ratio \(=\dfrac{2(0.3)}{2\times1}=0.3\). Since \(u=0.4>0.3\), **reject**. (Overall acceptance rate would be \(1/c=50\%\).)` },
       { id: 'q6', type: 'num', concept: 'ar', q: r`You run accept–reject with bounding constant \(c=2.5\). What fraction of candidates do you expect to accept?`, answer: 0.4,
         hint: r`\(1/c\).`, solution: r`\(1/2.5=0.4\).` },
       { id: 'q7', type: 'num', concept: 'bins', q: r`By Sturges's rule, how many histogram bins for \(n=1024\) observations?`, answer: 11, tol: 0.01,
@@ -149,13 +149,9 @@ It shines when no formula for the standard error exists, as with the median.`,
         hint: 'Same size as the original. And if you drew without replacement, what would you get?', solution: r`\(n\) rows **with** replacement. Without replacement you would just get the original data back in a different order.` },
       { id: 'q12', type: 'num', concept: 'boot', q: r`A dataset has \(n=10\) rows. In one bootstrap resample, what is the probability that a particular row is **never** picked?`, answer: 0.3487,
         hint: 'Each of the 10 draws misses that row with probability 0.9.', solution: r`\((0.9)^{10}=0.3487\). For large \(n\) this approaches \(e^{-1}\approx0.368\): about a third of the rows are "out-of-bag" each time.` },
-      { id: 'q13', type: 'self', concept: 'solve', q: r`In the dolphin example, \(Y\) counts working days between bad-weather days with \(E(Y)=\dfrac{1-p}p\), and \(X\mid Y\sim\text{Poisson}(\mu Y)\). Show that \(E(X)=100\) when \(\mu=25,\ p=0.2\), without simulating.`,
-        hint: r`First average \(X\) for a fixed \(Y\), then average over \(Y\): \(E(X)=E[E(X\mid Y)]\).`,
-        solution: r`Given \(Y\), \(X\) is Poisson with mean \(\mu Y\), so \(E(X\mid Y)=\mu Y\).
-
-Averaging over \(Y\): \(E(X)=E(\mu Y)=\mu E(Y)=25\cdot\dfrac{0.8}{0.2}=25\cdot4=100\).
-
-The simulation gave 100.16, which agrees.` },
+      { id: 'q13', type: 'self', concept: 'solve', q: r`A ferry operator has the same set-up as the dolphin example: \(Y\) = working days between bad-weather days (Geometric) with \(E(Y)=\dfrac{1-p}p\), and \(X\mid Y\sim\text{Poisson}(\mu Y)\). Here \(\mu=30\) passengers a day and \(p=0.25\). Find \(E(X)\) without simulating, and write the two lines of R you would use to check it.`,
+        hint: r`Law of total expectation: \(E(X)=E[E(X\mid Y)]\).`,
+        solution: r`\(E(X\mid Y)=30Y\), so \(E(X)=30\,E(Y)=30\times\dfrac{0.75}{0.25}=90\). Check: <code>y = rgeom(10000, prob=0.25); x = rpois(10000, lambda=30*y); mean(x)</code> should print about 90.` },
     ]
   });
 })();

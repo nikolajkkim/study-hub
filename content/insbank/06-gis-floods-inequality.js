@@ -95,8 +95,8 @@ Data science touches every role: lead scoring, pricing models, fraud flags, clai
       ]},
     ],
     practice: [
-      { id: 'q1', type: 'num', concept: 'returnperiod', q: r`What is the probability of at least one 100-year flood during a 30-year mortgage? (decimal)`, answer: 1 - Math.pow(0.99, 30), show: '≈ 0.26',
-        hint: r`\(1-0.99^{30}\).`, solution: r`\(1-0.99^{30}\approx0.260\).` },
+      { id: 'q1', type: 'num', concept: 'returnperiod', q: r`What is the probability of at least one 100-year flood during a 15-year mortgage? (decimal)`, answer: 1 - Math.pow(0.99, 15), show: '≈ 0.140',
+        hint: r`\(1-(1-p)^n\).`, solution: r`\(1-0.99^{15}\approx0.140\).` },
       { id: 'q2', type: 'num', concept: 'returnperiod', q: r`What is the probability of at least one 50-year flood in 10 years? (decimal)`, answer: 1 - Math.pow(0.98, 10), show: '≈ 0.183',
         hint: r`\(p=1/50\).`, solution: r`\(1-0.98^{10}\approx0.183\).` },
       { id: 'q3', type: 'num', concept: 'returnperiod', q: r`A flood has a 0.2% annual chance. What is its return period, in years?`, answer: 500, tol: 0.01,
