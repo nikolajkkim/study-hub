@@ -35,7 +35,11 @@
     (o.xticks || []).forEach(t => g.fillText(o.xfmt ? o.xfmt(t) : String(t), X(t), h - 8));
     g.textAlign = 'right';
     (o.yticks || []).forEach(t => g.fillText(o.yfmt ? o.yfmt(t) : t.toFixed(2), L - 4, Y(t) + 4));
-    if (o.bars) { g.fillStyle = acc; g.globalAlpha = 0.8; o.bars.forEach(b => { const x = X(b.x - b.w / 2), x2 = X(b.x + b.w / 2); g.fillRect(x + 0.5, Y(b.y), max(1, x2 - x - 1), Y(o.y0) - Y(b.y)); }); g.globalAlpha = 1; }
+    if (o.bars) { const b0 = o.base != null ? o.base : o.y0; g.fillStyle = acc; g.globalAlpha = 0.8; o.bars.forEach(b => { const x = X(b.x - b.w / 2), x2 = X(b.x + b.w / 2), yb = Y(max(o.y0, min(o.y1, b.y))); g.fillRect(x + 0.5, min(yb, Y(b0)), max(1, x2 - x - 1), Math.abs(Y(b0) - yb)); }); g.globalAlpha = 1; }
+    if (o.base != null) { g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(L, Y(o.base)); g.lineTo(w - R, Y(o.base)); g.stroke(); }
+    if (o.band) { g.fillStyle = css('--accent'); g.globalAlpha = 0.1; g.fillRect(L, Y(o.band[1]), w - L - R, Y(o.band[0]) - Y(o.band[1])); g.globalAlpha = 1; }
+    (o.hlines || []).forEach(v => { g.strokeStyle = css('--muted'); g.setLineDash([4, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(w - R, Y(v)); g.stroke(); g.setLineDash([]); });
+    (o.vlines || []).forEach(v => { g.strokeStyle = css('--muted'); g.setLineDash([2, 3]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(v), T); g.lineTo(X(v), h - B); g.stroke(); g.setLineDash([]); });
     const path = (pts, color, width) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); pts.forEach((p, i) => { const y = max(o.y0, min(o.y1, p[1])); i ? g.lineTo(X(p[0]), Y(y)) : g.moveTo(X(p[0]), Y(y)); }); g.stroke(); };
     if (o.line) path(o.line, acc, 2.5);
     if (o.overlay) path(o.overlay, good, 2);
@@ -271,7 +275,146 @@
     bindSliders(el, draw); draw(); return draw;
   }
 
-  const KINDS = { dist, clt, lik, softmax, lsh, chinchilla, mem, bt, grpo, passk };
+
+  /* ================= widgets for the insurance & banking course ================= */
+  const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = R => { let u = 0; while (!u) u = R(); return sqrt(-2 * log(u)) * Math.cos(2 * PI * R()); };
+  const pct = x => (x * 100).toFixed(1) + '%';
+  const Phi = z => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * exp(-z * z / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+
+  /* confusion matrix + ROC: scores of legit ~ N(0,1), positives ~ N(sep,1) */
+  function confusion(el) {
+    el.innerHTML = `<div class="controls">${sliderHTML('t', 'threshold', -2, 4, 0.05, 1)}${sliderHTML('s', 'separation', 0, 4, 0.1, 2)}${sliderHTML('p', 'share positive', 0.01, 0.5, 0.01, 0.1)}</div><div class="out"></div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const draw = () => {
+      const t = val(el, 't'), sep = val(el, 's'), pr = val(el, 'p'), N = 1000;
+      const tpr = 1 - Phi(t - sep), fpr = 1 - Phi(t), P = N * pr, Nn = N - P;
+      const TP = tpr * P, FN = P - TP, FP = fpr * Nn, TN = Nn - FP, r0 = x => Math.round(x);
+      const prec = TP + FP > 0 ? TP / (TP + FP) : 0, f1 = prec + tpr > 0 ? 2 * prec * tpr / (prec + tpr) : 0;
+      const pts = []; for (let i = 0; i <= 200; i++) { const th = 6 - 10 * i / 200; pts.push([1 - Phi(th), 1 - Phi(th - sep)]); }
+      const auc = Phi(sep / Math.SQRT2);
+      el.querySelector('.out').innerHTML = `<table class="cm"><tr><th></th><th>predicted positive</th><th>predicted negative</th></tr><tr><th>actually positive</th><td class="good">TP ${r0(TP)}</td><td class="bad">FN ${r0(FN)}</td></tr><tr><th>actually negative</th><td class="bad">FP ${r0(FP)}</td><td class="good">TN ${r0(TN)}</td></tr></table>`;
+      plot(c, { x0: 0, x1: 1, y0: 0, y1: 1.02, line: pts, overlay: [[0, 0], [1, 1]], dot: [fpr, tpr], xticks: [0, 0.25, 0.5, 0.75, 1], yticks: [0, 0.5, 1] });
+      out.innerHTML = `Per 1,000 cases. Precision <strong>${prec.toFixed(2)}</strong> · recall (TPR) <strong>${tpr.toFixed(2)}</strong> · FPR ${fpr.toFixed(2)} · F1 ${f1.toFixed(2)} · accuracy ${((TP + TN) / N).toFixed(2)} · Youden J ${(tpr - fpr).toFixed(2)}. Curve: the ROC (x = FPR, y = TPR; the dot is your threshold; the diagonal is random guessing). AUC = <strong>${auc.toFixed(2)}</strong>. Raise the threshold: fewer false alarms, more missed cases.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* ACF and PACF of simulated series */
+  function acfOf(x, K) { const n = x.length, m = x.reduce((a, b) => a + b, 0) / n, d = x.map(v => v - m), c0 = d.reduce((a, v) => a + v * v, 0); const r = []; for (let k = 1; k <= K; k++) { let s = 0; for (let i = k; i < n; i++) s += d[i] * d[i - k]; r.push(s / c0); } return r; }
+  function pacfOf(r) { // Durbin-Levinson
+    const K = r.length, out = []; let phi = [];
+    for (let k = 1; k <= K; k++) {
+      let num = r[k - 1], den = 1; for (let j = 1; j < k; j++) { num -= phi[j - 1] * r[k - j - 1]; den -= phi[j - 1] * r[j - 1]; }
+      const pk = num / den, nphi = phi.map((p, j) => p - pk * phi[k - j - 2]); nphi.push(pk); phi = nphi; out.push(pk);
+    }
+    return out;
+  }
+  function acf(el) {
+    const kinds = { wn: 'White noise', ar1: 'AR(1), φ = 0.7', ar2: 'AR(2), φ = 0.5, 0.3', ma1: 'MA(1), θ = 0.8', rw: 'Random walk (trend)', drw: 'Random walk, differenced once', seas: 'Monthly seasonal + noise' };
+    el.innerHTML = `<div class="controls"><label>Series <select>${Object.keys(kinds).map(k => `<option value="${k}" ${k === (el.dataset.start || 'rw') ? 'selected' : ''}>${kinds[k]}</option>`).join('')}</select></label><button class="btn" type="button">New sample</button></div><div class="muted small">ACF</div>`;
+    const c1 = canvas(el), lab = document.createElement('div'); lab.className = 'muted small'; lab.textContent = 'PACF'; el.appendChild(lab);
+    const c2 = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    let seed = 7;
+    const draw = () => {
+      const k = el.querySelector('select').value, n = 240, R = rng(seed), e = Array.from({ length: n + 1 }, () => gauss(R)), x = [];
+      for (let t = 0; t < n; t++) {
+        const p1 = x[t - 1] || 0, p2 = x[t - 2] || 0;
+        x.push(k === 'wn' ? e[t] : k === 'ar1' ? 0.7 * p1 + e[t] : k === 'ar2' ? 0.5 * p1 + 0.3 * p2 + e[t] : k === 'ma1' ? e[t + 1] + 0.8 * e[t] : k === 'seas' ? 3 * Math.sin(2 * PI * t / 12) + e[t] : p1 + e[t]);
+      }
+      const y = k === 'drw' ? x.slice(1).map((v, i) => v - x[i]) : x, K = 24, r = acfOf(y, K), pr = pacfOf(r), b = 1.96 / sqrt(y.length);
+      const opts = v => ({ x0: 0.3, x1: K + 0.7, y0: -1, y1: 1, base: 0, band: [-b, b], bars: v.map((q, i) => ({ x: i + 1, y: q, w: 0.6 })), xticks: [1, 6, 12, 18, 24], yticks: [-1, 0, 1], yfmt: t => t.toFixed(0) });
+      plot(c1, opts(r)); plot(c2, opts(pr));
+      const sigA = r.filter(q => Math.abs(q) > b).length;
+      const msg = { wn: 'Nothing sticks out: no memory, nothing to model.', ar1: 'ACF decays gradually; PACF cuts off after lag 1 → AR(1).', ar2: 'ACF decays; PACF cuts off after lag 2 → AR(2).', ma1: 'ACF cuts off after lag 1; PACF decays (alternating) → MA(1).', rw: 'ACF starts near 1 and decays very slowly: not stationary. Difference it.', drw: 'After one difference the random walk becomes white noise: ARIMA(0,1,0).', seas: 'ACF waves with peaks at lags 12 and 24: monthly seasonality. Try a lag-12 difference.' }[k];
+      out.innerHTML = `Shaded band = ±1.96/√n (bars inside it are not significant). ${sigA} of ${K} ACF bars are outside. <strong>${msg}</strong>`;
+    };
+    el.querySelector('select').addEventListener('change', draw);
+    el.querySelector('.btn').addEventListener('click', () => { seed++; draw(); });
+    draw(); return draw;
+  }
+
+  /* chance of at least one T-year event in n years */
+  function returnperiod(el) {
+    el.innerHTML = `<div class="controls">${sliderHTML('T', 'return period T (years)', 2, 1000, 1, 100)}${sliderHTML('n', 'over n years', 1, 100, 1, 30)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const draw = () => {
+      const T = val(el, 'T'), n = val(el, 'n'), p = 1 / T, P = m => 1 - (1 - p) ** m;
+      const pts = []; for (let m = 0; m <= 100; m++) pts.push([m, P(m)]);
+      plot(c, { x0: 0, x1: 100, y0: 0, y1: 1.02, line: pts, dot: [n, P(n)], xticks: [0, 20, 40, 60, 80, 100], yticks: [0, 0.5, 1], hlines: [0.5] });
+      out.innerHTML = `Annual chance 1/${T} = ${pct(p)}. Chance of <strong>at least one</strong> in ${n} years = 1 − (1 − ${p.toFixed(4)})<sup>${n}</sup> = <strong>${pct(P(n))}</strong>. The naive ${n} × ${pct(p)} = ${pct(min(n * p, 9.99))}${n * p > 1 ? ' (impossible, over 100%)' : ''} overstates it. Chance of none: ${pct(1 - P(n))}.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* cat model sandbox: Poisson(0.3) events, Gamma(2, 5M) severities, excess-of-loss layer */
+  let XOL;
+  function xolSim() {
+    if (XOL) return XOL;
+    const R = rng(2025), Y = 20000, lam = 0.3, years = [];
+    for (let y = 0; y < Y; y++) {
+      let k = 0, p = 1; const Lm = exp(-lam); do { k++; p *= R(); } while (p > Lm); k--;
+      const ev = []; for (let i = 0; i < k; i++) ev.push(5 * (-log(1 - R()) - log(1 - R())));
+      years.push(ev);
+    }
+    return XOL = years;
+  }
+  function xol(el) {
+    el.innerHTML = `<div class="controls">${sliderHTML('a', 'attachment ($M)', 0, 40, 0.5, 5)}${sliderHTML('l', 'limit ($M)', 1, 40, 0.5, 10)}</div>`;
+    const c = canvas(el), out = document.createElement('div'); out.className = 'readout'; el.appendChild(out);
+    const years = xolSim(), Y = years.length;
+    const occ = years.map(e => e.length ? max(...e) : 0), agg = years.map(e => e.reduce((a, b) => a + b, 0));
+    const so = [...occ].sort((a, b) => b - a), sa = [...agg].sort((a, b) => b - a), aal = agg.reduce((a, b) => a + b, 0) / Y;
+    const q = (s, T) => s[Math.floor(Y / T) - 1];
+    const draw = () => {
+      const a = val(el, 'a'), l = val(el, 'l');
+      let ceded = 0, att = 0, exh = 0;
+      years.forEach(e => { let hit = 0, full = 0; e.forEach(L => { const cd = min(max(L - a, 0), l); ceded += cd; if (L > a) hit = 1; if (L >= a + l) full = 1; }); att += hit; exh += full; });
+      const pts = []; for (let i = 0; i <= 120; i++) { const x = 60 * i / 120; let cnt = 0; for (const v of occ) if (v > x) cnt++; pts.push([x, cnt / Y]); }
+      plot(c, { x0: 0, x1: 60, y0: 0, y1: 0.27, line: pts, vlines: [a, a + l], xticks: [0, 10, 20, 30, 40, 50], xfmt: t => '$' + t + 'M', yticks: [0, 0.1, 0.2], yfmt: t => (t * 100).toFixed(0) + '%' });
+      out.innerHTML = `20,000 simulated years (events per year ~ Poisson 0.3; loss per event ~ Gamma, mean $10M). Curve: chance the <em>largest</em> event in a year exceeds x (the OEP curve); dotted lines = the layer. AAL <strong>$${aal.toFixed(1)}M</strong> · 1-in-100 OEP $${q(so, 100).toFixed(1)}M · AEP $${q(sa, 100).toFixed(1)}M. Layer $${l}M xs $${a}M: expected loss <strong>$${(ceded / Y).toFixed(2)}M/yr</strong>, P(attach) <strong>${pct(att / Y)}</strong>, P(exhaust) ${pct(exh / Y)}.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* Altman Z-score */
+  function altman(el) {
+    const W = [['A', 'working capital / assets', 1.2, -0.5, 1, 0.2], ['B', 'retained earnings / assets', 1.4, -1, 1, 0.3], ['C', 'EBIT / assets', 3.3, -0.5, 0.5, 0.1], ['D', 'mkt value equity / liabilities', 0.6, 0, 5, 1.5], ['E', 'sales / assets', 1.0, 0, 3, 1.2]];
+    el.innerHTML = `<div class="controls">${W.map(w => sliderHTML(w[0], w[0] + ' (' + w[1] + ')', w[3], w[4], 0.01, w[5])).join('')}</div><div class="out"></div><div class="readout"></div>`;
+    const draw = () => {
+      const parts = W.map(w => w[2] * val(el, w[0])), Z = parts.reduce((a, b) => a + b, 0);
+      const zone = Z > 2.99 ? ['safe', 'good'] : Z >= 1.81 ? ['grey', 'muted'] : ['distress', 'bad'];
+      el.querySelector('.out').innerHTML = hbars(W.map((w, i) => ({ label: `${w[2]} × ${w[0]}`, v: parts[i] / 4, text: parts[i].toFixed(2) })), { signed: true });
+      el.querySelector('.readout').innerHTML = `Z = <strong>${Z.toFixed(2)}</strong>: <strong class="${zone[1]}">${zone[0]} zone</strong> (safe > 2.99, grey 1.81–2.99, distress < 1.81). Bars show each weighted ratio's contribution; C (operating profit) carries the biggest weight.`;
+    };
+    bindSliders(el, draw); draw(); return draw;
+  }
+
+  /* Moran's I on a 5x5 grid, rook contiguity, binary weights */
+  function moran(el) {
+    const n = 5, presets = { clustered: i => (i % n) < 2 || (i < 10 && i % n < 3) ? 1 : 0, checkerboard: i => (Math.floor(i / n) + i % n) % 2, random: i => (rng(42 + i)() < 0.5 ? 1 : 0) };
+    let x = Array.from({ length: n * n }, (_, i) => presets.clustered(i));
+    el.innerHTML = `<div class="controls"><span>Click cells to switch high/low. Presets:</span>${Object.keys(presets).map(k => `<button type="button" class="btn" data-p="${k}">${k}</button>`).join('')}<button type="button" class="btn" data-p="shuffle">shuffle</button></div><div class="mgrid"></div><div class="readout"></div>`;
+    let shuf = 1;
+    const draw = () => {
+      const N = x.length, m = x.reduce((a, b) => a + b, 0) / N, d = x.map(v => v - m), den = d.reduce((a, v) => a + v * v, 0);
+      let num = 0, W = 0;
+      for (let i = 0; i < N; i++) { const r = Math.floor(i / n), cc = i % n; [[r - 1, cc], [r + 1, cc], [r, cc - 1], [r, cc + 1]].forEach(([a, b]) => { if (a >= 0 && a < n && b >= 0 && b < n) { num += d[i] * d[a * n + b]; W++; } }); }
+      const I = den ? N / W * num / den : 0, E = -1 / (N - 1);
+      el.querySelector('.mgrid').innerHTML = x.map((v, i) => `<button type="button" class="mcell ${v ? 'on' : ''}" data-i="${i}" aria-label="cell ${i + 1}">${v ? 'H' : 'L'}</button>`).join('');
+      el.querySelectorAll('.mcell').forEach(b => b.addEventListener('click', () => { x[+b.dataset.i] ^= 1; draw(); }));
+      el.querySelector('.readout').innerHTML = den ? `Moran's I = <strong>${I.toFixed(3)}</strong> (random would be about ${E.toFixed(3)}). ${I > 0.3 ? 'Clustered: highs sit next to highs.' : I < -0.3 ? 'Dispersed: highs sit next to lows (checkerboard-like).' : 'Close to random.'} Rook neighbours (shared edges), ${W / 2} neighbour pairs.` : 'All cells are equal: no variation, so I is undefined.';
+    };
+    el.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.p;
+      if (k === 'shuffle') { const R = rng(++shuf * 97); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } }
+      else x = x.map((_, i) => presets[k](i));
+      draw();
+    }));
+    draw(); return () => {};
+  }
+
+  const KINDS = { dist, clt, lik, softmax, lsh, chinchilla, mem, bt, grpo, passk, confusion, acf, returnperiod, xol, altman, moran };
   let live = [];
   window.StudyWidgets = {
     mount(root) {

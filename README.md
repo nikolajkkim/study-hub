@@ -9,7 +9,7 @@ A static study site built from lecture slides. Each lecture becomes:
 
 Plus a jargon decoder, progress tracking (saved in your browser), and an Ask panel.
 
-Live site: https://nikolajkkim.github.io/study-hub/ (after GitHub Pages is switched on: Settings → Pages → branch `main`, folder `/`)
+Live site: https://nikolajkkim.github.io/study-hub/
 
 ## Asking questions
 
@@ -28,6 +28,7 @@ Courses on the site today:
 |---|---|
 | `content/stat5701/` | STAT 5701, Probability and Statistics for Data Science (lectures 10–15) |
 | `content/coms4995/` | COMS 4995, Foundation Model Engineering (weeks 1–7 and 9–11) |
+| `content/insbank/` | Data Science for Insurance and Banking (lectures 1–9) |
 
 1. Copy any lecture file in the course's folder and edit it. Each file calls `COURSE.add({...})` with:
    `id`, `num`, `title`, `oneLiner`, `minutes`, `bigPicture`, `sections[].concepts[]`, `sheet[]`, `practice[]`.
